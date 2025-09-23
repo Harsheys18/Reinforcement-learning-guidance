@@ -127,7 +127,7 @@ def evaluate_images_in_directory(directory_path, scoring_fn, batch_size=1):
 
 def main():
     parser = argparse.ArgumentParser(description="为目录中的每张图片进行评估，并将详细分数保存到CSV文件中。")
-    parser.add_argument("--input_dir", type=str, default='/inspire/hdd/project/embodied-multimodality/public/lzjjin/Flow-RLG/logs/aes_generated_images/scale_0.0', help="包含图片和 'metadata.csv' 的输入目录。")
+    parser.add_argument("--input_dir", type=str, default='', help="包含图片和 'metadata.csv' 的输入目录。")
     parser.add_argument("--batch_size", type=int, default=1, help="评估时的批处理大小。")
     args = parser.parse_args()
 
