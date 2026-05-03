@@ -45,9 +45,16 @@ class AestheticScorer(torch.nn.Module):
     @torch.no_grad()
     def __call__(self, images):
         device = next(self.parameters()).device
+    
         inputs = self.processor(images=images, return_tensors="pt")
-        inputs = {k: v.to(self.dtype).to(device) for k, v in inputs.items()}
-        embed = self.clip.get_image_features(**inputs)
-        # normalize embedding
+        pixel_values = inputs["pixel_values"].to(device)
+    
+        # dummy text input to satisfy CLIP
+        dummy_input_ids = torch.zeros((pixel_values.shape[0], 1), dtype=torch.long, device=device)
+    
+        outputs = self.clip(pixel_values=pixel_values, input_ids=dummy_input_ids)
+        embed = outputs.image_embeds   # 🔥 768-dim
+    
         embed = embed / torch.linalg.vector_norm(embed, dim=-1, keepdim=True)
+    
         return self.mlp(embed).squeeze(1)
