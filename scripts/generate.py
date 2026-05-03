@@ -158,13 +158,13 @@ def main(_):
 
         with autocast():
             with torch.no_grad():
-            prompts = list(prompts)  
-        
-            images = pipeline(
-                prompts,
-                num_inference_steps=20,
-                guidance_scale=float(FLAGS.tuned_guidance_scale)
-            ).images
+                prompts = list(prompts)  
+            
+                images = pipeline(
+                    prompts,
+                    num_inference_steps=20,
+                    guidance_scale=float(FLAGS.tuned_guidance_scale)
+                ).images
             
         # Process and save images and metadata
         for i, pil_image in enumerate(images):
