@@ -9,13 +9,13 @@ from absl import app, flags
 from ml_collections import config_flags
 from accelerate import Accelerator
 from accelerate.utils import set_seed
-from diffusers import StableDiffusion3Pipeline
+from diffusers import StableDiffusionPipeline
 from peft import PeftModel
 from torch.utils.data import Dataset, DataLoader
 
 # Import the necessary functions from your project
-from rlg.diffusers_patch.sd3_pipeline_with_rlg import pipeline_with_logprob
-from rlg.diffusers_patch.train_dreambooth_lora_sd3 import encode_prompt
+# from rlg.diffusers_patch.sd3_pipeline_with_rlg import pipeline_with_logprob
+# from rlg.diffusers_patch.train_dreambooth_lora_sd3 import encode_prompt
 
 # Setup logging and progress bars
 tqdm = partial(tqdm, dynamic_ncols=True)
@@ -54,15 +54,15 @@ class TextPromptDataset(Dataset):
         return prompts,
 
 
-def compute_text_embeddings(prompt, text_encoders, tokenizers, max_sequence_length, device):
-    """Computes text embeddings for the given prompts."""
-    with torch.no_grad():
-        prompt_embeds, pooled_prompt_embeds = encode_prompt(
-            text_encoders, tokenizers, prompt, max_sequence_length
-        )
-        prompt_embeds = prompt_embeds.to(device)
-        pooled_prompt_embeds = pooled_prompt_embeds.to(device)
-    return prompt_embeds, pooled_prompt_embeds
+# def compute_text_embeddings(prompt, text_encoders, tokenizers, max_sequence_length, device):
+#     """Computes text embeddings for the given prompts."""
+#     with torch.no_grad():
+#         prompt_embeds, pooled_prompt_embeds = encode_prompt(
+#             text_encoders, tokenizers, prompt, max_sequence_length
+#         )
+#         prompt_embeds = prompt_embeds.to(device)
+#         pooled_prompt_embeds = pooled_prompt_embeds.to(device)
+#     return prompt_embeds, pooled_prompt_embeds
 
 
 def main(_):
@@ -79,25 +79,32 @@ def main(_):
 
     # --- Load Models ---
     logger.info(f"Loading base model from: {config.pretrained.model}")
-    pipeline = StableDiffusion3Pipeline.from_pretrained(config.pretrained.model)
+    pipeline = StableDiffusionPipeline.from_pretrained(
+        "runwayml/stable-diffusion-v1-5",
+        torch_dtype=torch.float16
+    )
     
     logger.info(f"Loading LoRA weights from: {FLAGS.lora_path}")
-    pipeline.transformer = PeftModel.from_pretrained(pipeline.transformer, FLAGS.lora_path)
+    # pipeline.transformer = PeftModel.from_pretrained(pipeline.transformer, FLAGS.lora_path)
     logger.info("Successfully loaded LoRA weights onto the transformer.")
 
     # --- Configure Pipeline ---
-    pipeline.vae.requires_grad_(False)
-    pipeline.text_encoder.requires_grad_(False)
-    pipeline.text_encoder_2.requires_grad_(False)
-    pipeline.text_encoder_3.requires_grad_(False)
-    pipeline.transformer.requires_grad_(False)
-    pipeline.safety_checker = None
+    # pipeline.vae.requires_grad_(False)
+    # pipeline.text_encoder.requires_grad_(False)
+    # pipeline.text_encoder_2.requires_grad_(False)
+    # pipeline.text_encoder_3.requires_grad_(False)
+    # pipeline.transformer.requires_grad_(False)
+    # pipeline.safety_checker = None
+
+    # pipeline.to(accelerator.device)
+    # pipeline.transformer.eval()
+
+    # text_encoders = [pipeline.text_encoder, pipeline.text_encoder_2, pipeline.text_encoder_3]
+    # tokenizers = [pipeline.tokenizer, pipeline.tokenizer_2, pipeline.tokenizer_3]
 
     pipeline.to(accelerator.device)
-    pipeline.transformer.eval()
-
-    text_encoders = [pipeline.text_encoder, pipeline.text_encoder_2, pipeline.text_encoder_3]
-    tokenizers = [pipeline.tokenizer, pipeline.tokenizer_2, pipeline.tokenizer_3]
+    pipeline.enable_attention_slicing()
+    pipeline.safety_checker = None
     
     # --- Prepare Dataset ---
     logger.info(f"Loading prompts from: {FLAGS.prompt_file}")
@@ -115,11 +122,11 @@ def main(_):
     autocast = accelerator.autocast
 
     # Pre-compute negative prompt embeddings (empty string)
-    neg_prompt_embed, neg_pooled_prompt_embed = compute_text_embeddings(
-        [""], text_encoders, tokenizers, max_sequence_length=256, device=accelerator.device
-    )
-    sample_neg_prompt_embeds = neg_prompt_embed.repeat(config.sample.test_batch_size, 1, 1)
-    sample_neg_pooled_prompt_embeds = neg_pooled_prompt_embed.repeat(config.sample.test_batch_size, 1)
+    # neg_prompt_embed, neg_pooled_prompt_embed = compute_text_embeddings(
+    #     [""], text_encoders, tokenizers, max_sequence_length=256, device=accelerator.device
+    # )
+    # sample_neg_prompt_embeds = neg_prompt_embed.repeat(config.sample.test_batch_size, 1, 1)
+    # sample_neg_pooled_prompt_embeds = neg_pooled_prompt_embed.repeat(config.sample.test_batch_size, 1)
     
     # --- Generation Loop ---
     metadata_records = []
@@ -131,45 +138,34 @@ def main(_):
     for batch in dataloader:
         prompts = batch[0]
         
-        prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
-            prompts,
-            text_encoders,
-            tokenizers,
-            max_sequence_length=256,
-            device=accelerator.device
-        )
+        # prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
+        #     prompts,
+        #     text_encoders,
+        #     tokenizers,
+        #     max_sequence_length=256,
+        #     device=accelerator.device
+        # )
         
         # Adjust negative prompts for the last batch if its size is smaller
         current_batch_size = len(prompts)
         if current_batch_size < config.sample.test_batch_size:
-            batch_neg_prompt_embeds = sample_neg_prompt_embeds[:current_batch_size]
-            batch_neg_pooled_prompt_embeds = sample_neg_pooled_prompt_embeds[:current_batch_size]
-        else:
-            batch_neg_prompt_embeds = sample_neg_prompt_embeds
-            batch_neg_pooled_prompt_embeds = sample_neg_pooled_prompt_embeds
+        #     batch_neg_prompt_embeds = sample_neg_prompt_embeds[:current_batch_size]
+        #     batch_neg_pooled_prompt_embeds = sample_neg_pooled_prompt_embeds[:current_batch_size]
+        # else:
+        #     batch_neg_prompt_embeds = sample_neg_prompt_embeds
+        #     batch_neg_pooled_prompt_embeds = sample_neg_pooled_prompt_embeds
 
         with autocast():
             with torch.no_grad():
                 # Use the custom pipeline function with the tuned_guidance_scale flag
-                images, _, _, _ = pipeline_with_logprob(
-                    pipeline,
-                    prompt_embeds=prompt_embeds,
-                    pooled_prompt_embeds=pooled_prompt_embeds,
-                    negative_prompt_embeds=batch_neg_prompt_embeds,
-                    negative_pooled_prompt_embeds=batch_neg_pooled_prompt_embeds,
+                images = pipeline(
+                    prompts,
                     num_inference_steps=20,
-                    zero_init_step=0,
-                    guidance_scale=config.sample.guidance_scale, # This is the standard CFG scale
-                    tuned_guidance_scale=FLAGS.tuned_guidance_scale, # This is your custom scale
-                    output_type="pt",
-                    return_dict=False,
-                    height=config.resolution,
-                    width=config.resolution,
-                    determistic=True,
-                )
+                    guidance_scale=FLAGS.tuned_guidance_scale
+                ).images
 
         # Process and save images and metadata
-        for i, img_tensor in enumerate(images):
+        for i, pil_image in enumerate(images):
             prompt_text = prompts[i]
             
             # Format filename with zero-padding
@@ -177,9 +173,9 @@ def main(_):
             image_save_path = os.path.join(run_output_dir, image_filename)
             
             # Convert tensor to PIL Image and save
-            img_tensor = img_tensor.permute(1, 2, 0).cpu().numpy()
-            img_np = np.clip(img_tensor * 255, 0, 255).astype(np.uint8)
-            pil_image = Image.fromarray(img_np)
+            # img_tensor = img_tensor.permute(1, 2, 0).cpu().numpy()
+            # img_np = np.clip(img_tensor * 255, 0, 255).astype(np.uint8)
+            # pil_image = Image.fromarray(img_np)
             pil_image.save(image_save_path)
             
             # Store metadata for the CSV file
