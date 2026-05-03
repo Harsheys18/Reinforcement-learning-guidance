@@ -149,6 +149,7 @@ def main(_):
         # Adjust negative prompts for the last batch if its size is smaller
         current_batch_size = len(prompts)
         if current_batch_size < config.sample.test_batch_size:
+            pass
         #     batch_neg_prompt_embeds = sample_neg_prompt_embeds[:current_batch_size]
         #     batch_neg_pooled_prompt_embeds = sample_neg_pooled_prompt_embeds[:current_batch_size]
         # else:
@@ -157,13 +158,14 @@ def main(_):
 
         with autocast():
             with torch.no_grad():
-                # Use the custom pipeline function with the tuned_guidance_scale flag
-                images = pipeline(
-                    prompts,
-                    num_inference_steps=20,
-                    guidance_scale=FLAGS.tuned_guidance_scale
-                ).images
-
+            prompts = list(prompts)  
+        
+            images = pipeline(
+                prompts,
+                num_inference_steps=20,
+                guidance_scale=float(FLAGS.tuned_guidance_scale)
+            ).images
+            
         # Process and save images and metadata
         for i, pil_image in enumerate(images):
             prompt_text = prompts[i]
