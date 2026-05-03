@@ -55,6 +55,8 @@ def multi_score(device, score_dict):
     }
     score_fns = {}
     for score_name, weight in score_dict.items():
+        if weight == 0.0:
+            continue
         if 'device' in score_functions[score_name].__code__.co_varnames:
             score_fns[score_name] = score_functions[score_name](device)
         else:
@@ -62,6 +64,8 @@ def multi_score(device, score_dict):
     def _fn(images, prompts, metadata):
         score_details = {}
         for score_name, weight in score_dict.items():
+            if weight == 0.0:
+                continue
             scores, _ = score_fns[score_name](images, prompts, metadata)
             score_details[score_name] = scores
         return score_details, {}
@@ -136,8 +140,6 @@ def main():
 
     score_dict = {
         "aesthetic": 1.0,
-        "imagereward": 0.0,
-        "pickscore": 0.0,
     }
     
     scoring_fn = multi_score(device, score_dict)
