@@ -148,8 +148,8 @@ def main(_):
         
         # Adjust negative prompts for the last batch if its size is smaller
         current_batch_size = len(prompts)
-        if current_batch_size < config.sample.test_batch_size:
-            pass
+        # if current_batch_size < config.sample.test_batch_size:
+        #     pass
         #     batch_neg_prompt_embeds = sample_neg_prompt_embeds[:current_batch_size]
         #     batch_neg_pooled_prompt_embeds = sample_neg_pooled_prompt_embeds[:current_batch_size]
         # else:
