@@ -136,8 +136,8 @@ def main():
 
     score_dict = {
         "aesthetic": 1.0,
-        "imagereward": 1.0,
-        "pickscore": 1.0,
+        "imagereward": 0.0,
+        "pickscore": 0.0,
     }
     
     scoring_fn = multi_score(device, score_dict)
