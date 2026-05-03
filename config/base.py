@@ -13,9 +13,9 @@ def get_config():
     config.mixed_precision = "fp16"
     config.allow_tf32 = True
     config.resume_from = ""
-    config.use_lora = True
+    config.use_lora = False
     config.dataset = ""
-    config.resolution = 768
+    config.resolution = 512
 
     config.pretrained = pretrained = ml_collections.ConfigDict()
     pretrained.model = "runwayml/stable-diffusion-v1-5"
